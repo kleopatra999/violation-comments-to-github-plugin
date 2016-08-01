@@ -3,6 +3,25 @@ Changelog of Violation Comments to GitHub plugin for Jenkins.
 ## Unreleased
 ### No issue
 
+**Reformat of Java code**
+
+
+[fbb5ebe369e3f50](https://github.com/repos/jenkinsci/violation-comments-to-github-plugin/fbb5ebe369e3f50) Tomas Bjerre *2016-08-01 06:39:21*
+
+**Scripts for running and debuging**
+
+
+[5558a1b40524b3d](https://github.com/repos/jenkinsci/violation-comments-to-github-plugin/5558a1b40524b3d) Tomas Bjerre *2016-07-30 19:26:54*
+
+
+## 1.10
+### No issue
+
+**doc**
+
+
+[fe2cf00ccdc98bc](https://github.com/repos/jenkinsci/violation-comments-to-github-plugin/fe2cf00ccdc98bc) Tomas Bjerre *2016-04-27 14:51:08*
+
 **Andoid lint**
 
 
@@ -62,7 +81,7 @@ Changelog of Violation Comments to GitHub plugin for Jenkins.
 
 
 ## 1.7
-### GitHub #5 
+### GitHub [#5](https://github.com/jenkinsci/violation-comments-to-github-plugin/issues/5) Use hudson.util.Secret
 
 **Using comment only changed part of content correctly #5**
 

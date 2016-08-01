@@ -34,4 +34,9 @@ public class ViolationConfig implements Serializable {
  public void setReporter(Reporter reporter) {
   this.reporter = reporter;
  }
+
+ @Override
+ public String toString() {
+  return "ViolationConfig [pattern=" + this.pattern + ", reporter=" + this.reporter + "]";
+ }
 }

@@ -1,12 +1,12 @@
 package org.jenkinsci.plugins.jvctg.perform;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Strings.emptyToNull;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.base.Throwables.propagate;
 import static com.google.common.collect.Lists.newArrayList;
-import static java.util.logging.Level.INFO;
 import static java.util.logging.Level.SEVERE;
-import static org.jenkinsci.plugins.jvctg.JvctgLogger.doLog;
+import static org.jenkinsci.plugins.jvctg.config.CredentialsHelper.findCredentials;
 import static org.jenkinsci.plugins.jvctg.config.ViolationsToGitHubConfigHelper.FIELD_COMMENTONLYCHANGEDCONTENT;
 import static org.jenkinsci.plugins.jvctg.config.ViolationsToGitHubConfigHelper.FIELD_CREATECOMMENTWITHALLSINGLEFILECOMMENTS;
 import static org.jenkinsci.plugins.jvctg.config.ViolationsToGitHubConfigHelper.FIELD_CREATESINGLEFILECOMMENTS;
@@ -17,6 +17,7 @@ import static org.jenkinsci.plugins.jvctg.config.ViolationsToGitHubConfigHelper.
 import static org.jenkinsci.plugins.jvctg.config.ViolationsToGitHubConfigHelper.FIELD_REPOSITORYNAME;
 import static org.jenkinsci.plugins.jvctg.config.ViolationsToGitHubConfigHelper.FIELD_REPOSITORYOWNER;
 import static org.jenkinsci.plugins.jvctg.config.ViolationsToGitHubConfigHelper.FIELD_USERNAME;
+import static org.jenkinsci.plugins.jvctg.config.ViolationsToGitHubConfigHelper.FIELD_USERNAMEPASSWORDCREDENTIALSID;
 import static se.bjurr.violations.comments.github.lib.ViolationCommentsToGitHubApi.violationCommentsToGitHubApi;
 import static se.bjurr.violations.lib.ViolationsReporterApi.violationsReporterApi;
 import static se.bjurr.violations.lib.parsers.FindbugsParser.setFindbugsMessagesXml;
@@ -32,6 +33,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.util.List;
+import java.util.logging.Logger;
 
 import org.jenkinsci.plugins.jvctg.config.ViolationConfig;
 import org.jenkinsci.plugins.jvctg.config.ViolationsToGitHubConfig;
@@ -39,32 +41,21 @@ import org.jenkinsci.remoting.RoleChecker;
 
 import se.bjurr.violations.lib.model.Violation;
 
+import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import com.google.common.io.CharStreams;
 
-public class JvctsPerformer {
+public class JvctgPerformer {
 
  @VisibleForTesting
  public static void doPerform(ViolationsToGitHubConfig config, File workspace, TaskListener listener)
    throws MalformedURLException {
   if (isNullOrEmpty(config.getPullRequestId())) {
-   doLog(INFO, "No pull request id defined, will not send violation comments to GitHub.");
+   listener.getLogger().println("No pull request id defined, will not send violation comments to GitHub.");
    return;
   }
   Integer pullRequestIdInt = Integer.valueOf(config.getPullRequestId());
-  if (!isNullOrEmpty(config.getOAuth2Token())) {
-   doLog(INFO, "Using OAuth2Token");
-  } else if (!isNullOrEmpty(config.getUsername()) && !isNullOrEmpty(config.getPassword())) {
-   doLog(INFO, "Using username/password: " + config.getUsername().substring(0, 1) + ".../*********");
-  } else {
-   doLog(INFO, "No OAuth2 token and no username/email specified. Will not comment any pull request.");
-   return;
-  }
-
-  doLog(
-    INFO,
-    "Will comment PR " + config.getRepositoryOwner() + "/" + config.getRepositoryName() + "/"
-      + config.getPullRequestId() + " on " + config.getGitHubUrl());
 
   List<Violation> allParsedViolations = newArrayList();
   for (ViolationConfig violationConfig : config.getViolationConfigs()) {
@@ -74,13 +65,50 @@ public class JvctsPerformer {
      .withPattern(violationConfig.getPattern())//
      .violations();
    allParsedViolations.addAll(parsedViolations);
+   listener.getLogger().println("Found " + parsedViolations.size() + " violations from " + violationConfig + ".");
   }
+
+  String oAuth2Token = null;
+  String username = null;
+  String password = null;
+  if (config.isUseOAuth2Token()) {
+   oAuth2Token = checkNotNull(emptyToNull(config.getOAuth2Token()), "OAuth2Token");
+   listener.getLogger().println("Using OAuth2Token");
+  } else if (config.isUseUsernamePassword()) {
+   username = checkNotNull(emptyToNull(config.getUsername()), "username");
+   password = checkNotNull(emptyToNull(config.getPassword()), "password");
+   listener.getLogger().println("Using username / password");
+  } else if (config.isUseUsernamePasswordCredentials()) {
+   if (!isNullOrEmpty(config.getUsernamePasswordCredentialsId())) {
+    Optional<StandardUsernamePasswordCredentials> credentials = findCredentials(config
+      .getUsernamePasswordCredentialsId());
+    if (credentials.isPresent()) {
+     username = checkNotNull(emptyToNull(credentials.get().getUsername()), "username");
+     password = checkNotNull(emptyToNull(credentials.get().getPassword().getPlainText()), "password");
+     listener.getLogger().println("Using credentials");
+    } else {
+     listener.getLogger().println("Credentials not found!");
+     return;
+    }
+   } else {
+    listener.getLogger().println("No credentials selected!");
+    return;
+   }
+  } else {
+   listener.getLogger().println(
+     "No OAuth2 token and no username/password specified. Will not comment any pull request.");
+   return;
+  }
+
+  listener.getLogger().println(
+    "Will comment PR " + config.getRepositoryOwner() + "/" + config.getRepositoryName() + "/"
+      + config.getPullRequestId() + " on " + config.getGitHubUrl());
 
   try {
    violationCommentsToGitHubApi()//
-     .withoAuth2Token(emptyToNull(config.getOAuth2Token()))//
-     .withUsername(emptyToNull(config.getUsername()))//
-     .withPassword(emptyToNull(config.getPassword()))//
+     .withoAuth2Token(oAuth2Token)//
+     .withUsername(username)//
+     .withPassword(password)//
      .withGitHubUrl(config.getGitHubUrl())//
      .withPullRequestId(pullRequestIdInt)//
      .withRepositoryName(config.getRepositoryName())//
@@ -91,7 +119,8 @@ public class JvctsPerformer {
      .withCommentOnlyChangedContent(config.getCommentOnlyChangedContent())//
      .toPullRequest();
   } catch (Exception e) {
-   doLog(SEVERE, "", e);
+   listener.getLogger().println(e.getMessage());
+   Logger.getLogger(JvctgPerformer.class.getName()).log(SEVERE, "", e);
   }
  }
 
@@ -120,14 +149,47 @@ public class JvctsPerformer {
     @Override
     public Void invoke(File workspace, VirtualChannel channel) throws IOException, InterruptedException {
      setupFindBugsMessages();
-     doLog(INFO, "Workspace: " + workspace.getAbsolutePath());
+     listener.getLogger().println("Workspace: " + workspace.getAbsolutePath());
      doPerform(configExpanded, workspace, listener);
      return null;
     }
    });
   } catch (Exception e) {
-   doLog(SEVERE, "", e);
+   listener.getLogger().println(e.getMessage());
+   Logger.getLogger(JvctgPerformer.class.getName()).log(SEVERE, "", e);
    return;
+  }
+ }
+
+ private static void logConfiguration(ViolationsToGitHubConfig config, Run<?, ?> build, TaskListener listener) {
+  listener.getLogger().println(FIELD_GITHUBURL + ": " + config.getGitHubUrl());
+  listener.getLogger().println(FIELD_REPOSITORYOWNER + ": " + config.getRepositoryOwner());
+  listener.getLogger().println(FIELD_REPOSITORYNAME + ": " + config.getRepositoryName());
+  listener.getLogger().println(FIELD_PULLREQUESTID + ": " + config.getPullRequestId());
+
+  listener.getLogger().println(
+    FIELD_USERNAMEPASSWORDCREDENTIALSID + ": " + !isNullOrEmpty(config.getUsernamePasswordCredentialsId()));
+  listener.getLogger().println(FIELD_USERNAME + ": " + !isNullOrEmpty(config.getUsername()));
+  listener.getLogger().println(FIELD_PASSWORD + ": " + !isNullOrEmpty(config.getPassword()));
+  listener.getLogger().println(FIELD_OAUTH2TOKEN + ": " + !isNullOrEmpty(config.getOAuth2Token()));
+
+  listener.getLogger().println(FIELD_CREATESINGLEFILECOMMENTS + ": " + config.getCreateSingleFileComments());
+  listener.getLogger().println(
+    FIELD_CREATECOMMENTWITHALLSINGLEFILECOMMENTS + ": " + config.getCreateCommentWithAllSingleFileComments());
+  listener.getLogger().println(FIELD_COMMENTONLYCHANGEDCONTENT + ": " + config.getCommentOnlyChangedContent());
+
+  for (ViolationConfig violationConfig : config.getViolationConfigs()) {
+   listener.getLogger().println(violationConfig.getReporter() + " with pattern " + violationConfig.getPattern());
+  }
+ }
+
+ private static void setupFindBugsMessages() {
+  try {
+   String findbugsMessagesXml = CharStreams.toString(new InputStreamReader(JvctgPerformer.class
+     .getResourceAsStream("findbugs-messages.xml")));
+   setFindbugsMessagesXml(findbugsMessagesXml);
+  } catch (IOException e) {
+   propagate(e);
   }
  }
 
@@ -135,7 +197,8 @@ public class JvctsPerformer {
   * Makes sure any Jenkins variable, used in the configuration fields, are
   * evaluated.
   */
- private static ViolationsToGitHubConfig expand(ViolationsToGitHubConfig config, EnvVars environment) {
+ @VisibleForTesting
+ static ViolationsToGitHubConfig expand(ViolationsToGitHubConfig config, EnvVars environment) {
   ViolationsToGitHubConfig expanded = new ViolationsToGitHubConfig();
   expanded.setGitHubUrl(environment.expand(config.getGitHubUrl()));
   expanded.setUsername(environment.expand(config.getUsername()));
@@ -147,6 +210,10 @@ public class JvctsPerformer {
   expanded.setCreateCommentWithAllSingleFileComments(config.getCreateCommentWithAllSingleFileComments());
   expanded.setCreateSingleFileComments(config.getCreateSingleFileComments());
   expanded.setCommentOnlyChangedContent(config.getCommentOnlyChangedContent());
+  expanded.setUsernamePasswordCredentialsId(config.getUsernamePasswordCredentialsId());
+  expanded.setUseUsernamePassword(config.isUseUsernamePassword());
+  expanded.setUseOAuth2Token(config.isUseOAuth2Token());
+  expanded.setUseUsernamePasswordCredentials(config.isUseUsernamePasswordCredentials());
   for (ViolationConfig violationConfig : config.getViolationConfigs()) {
    ViolationConfig p = new ViolationConfig();
    p.setPattern(environment.expand(violationConfig.getPattern()));
@@ -154,35 +221,5 @@ public class JvctsPerformer {
    expanded.getViolationConfigs().add(p);
   }
   return expanded;
- }
-
- private static void logConfiguration(ViolationsToGitHubConfig config, Run<?, ?> build, TaskListener listener) {
-  listener.getLogger().println(FIELD_GITHUBURL + ": " + config.getGitHubUrl());
-  listener.getLogger().println(FIELD_REPOSITORYOWNER + ": " + config.getRepositoryOwner());
-  listener.getLogger().println(FIELD_REPOSITORYNAME + ": " + config.getRepositoryName());
-  listener.getLogger().println(FIELD_PULLREQUESTID + ": " + config.getPullRequestId());
-
-  listener.getLogger().println(FIELD_USERNAME + ": " + !isNullOrEmpty(config.getUsername()));
-  listener.getLogger().println(FIELD_PASSWORD + ": " + !isNullOrEmpty(config.getPassword()));
-  listener.getLogger().println(FIELD_OAUTH2TOKEN + ": " + !isNullOrEmpty(config.getOAuth2Token()));
-
-  listener.getLogger().println(FIELD_CREATESINGLEFILECOMMENTS + ": " + config.getCreateSingleFileComments());
-  listener.getLogger().println(
-    FIELD_CREATECOMMENTWITHALLSINGLEFILECOMMENTS + ": " + config.getCreateCommentWithAllSingleFileComments());
-  listener.getLogger().println(FIELD_COMMENTONLYCHANGEDCONTENT + ": " + config.getCommentOnlyChangedContent());
-
-  for (ViolationConfig violationConfig : config.getViolationConfigs()) {
-   doLog(INFO, violationConfig.getReporter() + " with pattern " + violationConfig.getPattern());
-  }
- }
-
- private static void setupFindBugsMessages() {
-  try {
-   String findbugsMessagesXml = CharStreams.toString(new InputStreamReader(JvctsPerformer.class
-     .getResourceAsStream("findbugs-messages.xml")));
-   setFindbugsMessagesXml(findbugsMessagesXml);
-  } catch (IOException e) {
-   propagate(e);
-  }
  }
 }

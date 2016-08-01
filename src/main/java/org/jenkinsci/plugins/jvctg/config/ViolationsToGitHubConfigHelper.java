@@ -18,7 +18,11 @@ public class ViolationsToGitHubConfigHelper {
  public static final String FIELD_REPORTER = "reporter";
  public static final String FIELD_REPOSITORYNAME = "repositoryName";
  public static final String FIELD_REPOSITORYOWNER = "repositoryOwner";
+ public static final String FIELD_USEOAUTH2TOKEN = "useOAuth2Token";
  public static final String FIELD_USERNAME = "username";
+ public static final String FIELD_USERNAMEPASSWORDCREDENTIALSID = "usernamePasswordCredentialsId";
+ public static final String FIELD_USEUSERNAMEPASSWORD = "useUsernamePassword";
+ public static final String FIELD_USEUSERNAMEPASSWORDCREDENTIALS = "useUsernamePasswordCredentials";
 
  public static ViolationsToGitHubConfig createNewConfig() {
   ViolationsToGitHubConfig config = new ViolationsToGitHubConfig();

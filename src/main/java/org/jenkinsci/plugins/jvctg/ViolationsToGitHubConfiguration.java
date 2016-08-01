@@ -1,12 +1,14 @@
 package org.jenkinsci.plugins.jvctg;
 
 import hudson.Extension;
+import hudson.util.ListBoxModel;
 
 import java.io.Serializable;
 
 import jenkins.model.GlobalConfiguration;
 import net.sf.json.JSONObject;
 
+import org.jenkinsci.plugins.jvctg.config.CredentialsHelper;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.StaplerRequest;
 
@@ -31,8 +33,8 @@ public class ViolationsToGitHubConfiguration extends GlobalConfiguration impleme
  public String oAuth2Token;
  public String password;
  public String repositoryOwner;
-
  public String username;
+ private String usernamePasswordCredentialsId;
 
  public ViolationsToGitHubConfiguration() {
   load();
@@ -43,6 +45,10 @@ public class ViolationsToGitHubConfiguration extends GlobalConfiguration impleme
   req.bindJSON(this, json);
   save();
   return true;
+ }
+
+ public ListBoxModel doFillUsernamePasswordCredentialsIdItems() {
+  return CredentialsHelper.doFillUsernamePasswordCredentialsIdItems();
  }
 
  public String getGitHubUrl() {
@@ -63,6 +69,10 @@ public class ViolationsToGitHubConfiguration extends GlobalConfiguration impleme
 
  public String getUsername() {
   return this.username;
+ }
+
+ public String getUsernamePasswordCredentialsId() {
+  return this.usernamePasswordCredentialsId;
  }
 
  @DataBoundSetter
@@ -88,5 +98,16 @@ public class ViolationsToGitHubConfiguration extends GlobalConfiguration impleme
  @DataBoundSetter
  public void setUsername(String username) {
   this.username = username;
+ }
+
+ public void setUsernamePasswordCredentialsId(String usernamePasswordCredentialsId) {
+  this.usernamePasswordCredentialsId = usernamePasswordCredentialsId;
+ }
+
+ @Override
+ public String toString() {
+  return "ViolationsToGitHubConfiguration [gitHubUrl=" + this.gitHubUrl + ", oAuth2Token=" + this.oAuth2Token
+    + ", password=" + this.password + ", repositoryOwner=" + this.repositoryOwner + ", username=" + this.username
+    + ", usernamePasswordCredentialsId=" + this.usernamePasswordCredentialsId + "]";
  }
 }

@@ -5,29 +5,33 @@
          xmlns:f="/lib/form"
          xmlns:l="/lib/layout"
          xmlns:st="jelly:stapler"
-         xmlns:t="/lib/hudson">
+         xmlns:t="/lib/hudson"
+         xmlns:c="/lib/credentials">
+ <f:section title="GitHub Violations Server Defaults">
 
-    <f:section title="GitHub Violations Server Defaults">
+  <f:entry title="Username/Password Crendential" field="usernamePasswordCredentialsId">
+    <c:select />
+  </f:entry>
 
-        <f:entry title="User (Optional, you may also use OAuth2 token)" field="username">
-            <f:textbox />
-        </f:entry>
+  <f:entry title="Username" field="username">
+    <f:textbox value="${config.username}" />
+  </f:entry>
 
-        <f:entry title="Password (Optional, you may also use OAuth2 token)" field="password">
-            <f:password />
-        </f:entry>
+  <f:entry title="Password" field="password">
+    <f:password value="${config.password}" />
+  </f:entry>
 
-        <f:entry title="OAuth2 token (Optional, you may also use username and password)" field="oAuth2Token">
-            <f:password />
-        </f:entry>
+  <f:entry title="OAuth2 token" field="oAuth2Token">
+    <f:password value="${config.oAuth2Token}" />
+  </f:entry>
 
-        <f:entry title="Base URL (Default is: https://api.github.com/)" field="gitHubUrl">
-            <f:textbox  value="${gitHubUrl}" />
-        </f:entry>
+  <f:entry title="Base URL (Default is: https://api.github.com/)" field="gitHubUrl">
+    <f:textbox value="${gitHubUrl}" />
+  </f:entry>
 
-        <f:entry title="Repository owner (Like 'a' if repo is: https://github.com/a/b)" field="repositoryOwner">
-            <f:textbox />
-        </f:entry>
+  <f:entry title="Repository owner (Like 'a' if repo is: https://github.com/a/b)" field="repositoryOwner">
+    <f:textbox />
+  </f:entry>
 
-    </f:section>
+ </f:section>
 </j:jelly>

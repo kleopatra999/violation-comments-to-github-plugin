@@ -1,7 +1,7 @@
 package org.jenkinsci.plugins.jvctg;
 
 import static hudson.tasks.BuildStepMonitor.NONE;
-import static org.jenkinsci.plugins.jvctg.perform.JvctsPerformer.jvctsPerform;
+import static org.jenkinsci.plugins.jvctg.perform.JvctgPerformer.jvctsPerform;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
@@ -34,11 +34,14 @@ public class ViolationsToGitHubRecorder extends Recorder implements SimpleBuildS
  @DataBoundConstructor
  public ViolationsToGitHubRecorder(boolean createSingleFileComments, boolean createCommentWithAllSingleFileComments,
    String repositoryName, String repositoryOwner, String password, String username, String oAuth2Token,
-   String pullRequestId, String gitHubUrl, boolean commentOnlyChangedContent, List<ViolationConfig> violationConfigs) {
+   String pullRequestId, String gitHubUrl, boolean commentOnlyChangedContent, List<ViolationConfig> violationConfigs,
+   String usernamePasswordCredentialsId, boolean useOAuth2Token, boolean useUsernamePasswordCredentials,
+   boolean useUsernamePassword) {
 
   this.config = new ViolationsToGitHubConfig(createSingleFileComments, createCommentWithAllSingleFileComments,
     repositoryName, repositoryOwner, password, username, oAuth2Token, pullRequestId, gitHubUrl,
-    commentOnlyChangedContent, violationConfigs);
+    commentOnlyChangedContent, violationConfigs, usernamePasswordCredentialsId, useOAuth2Token,
+    useUsernamePasswordCredentials, useUsernamePassword);
  }
 
  public ViolationsToGitHubConfig getConfig() {
